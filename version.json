@@ -2,6 +2,6 @@
   "versionCode": 2,
   "versionName": "1.0.1",
   "releaseNotes": "• Play Store-style in-app updates\n• Anti-cheat dynamic answer shuffling\n• Full screen safe area padding for camera notches\n• Enhanced Gemini AI multi-model fallback",
-  "apkUrl": "https://raw.githubusercontent.com/Vinoth-46/CodeQuest/main/CodeQuest.apk",
+  "apkUrl": "https://github.com/Vinoth-46/CodeQuest/releases/download/v1.0.1/CodeQuest.apk",
   "isMandatory": false
 }
