@@ -110,19 +110,6 @@ fun HomeScreen(
             com.codequest.learn.ui.components.ProgressSnapshotCard(progress = progress)
         }
 
-        // ── AI Daily Quests Banner ──
-        item {
-            AiDailyQuestBanner(
-                apiKey = apiKey,
-                hasAiToday = hasAiToday,
-                isGeneratingAi = isGeneratingAi,
-                generationMessage = generationMessage,
-                selectedTier = selectedTier,
-                onGenerateAi = { onGenerateAi(selectedTier) },
-                onOpenSettings = onOpenSettings,
-                onClearMessage = onClearMessage
-            )
-        }
 
         // ── Skill Tier Filter Selector ──
         item {
