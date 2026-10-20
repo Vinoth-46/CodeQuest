@@ -1,5 +1,6 @@
 package com.codequest.learn.ui.screens
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -8,28 +9,43 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.codequest.learn.model.LeaderboardEntry
 import com.codequest.learn.ui.theme.*
 
 @Composable
 fun LeaderboardScreen(
     entries: List<LeaderboardEntry>,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val topThree = entries.take(3)
     val rest = entries.drop(3)
+
+    val infiniteTransition = rememberInfiniteTransition(label = "spin")
+    val angle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
 
     LazyColumn(
         modifier = modifier
@@ -38,7 +54,7 @@ fun LeaderboardScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
     ) {
-        // ── League Header ──
+        // ── Live Cloud & League Header ──
         item {
             Surface(
                 modifier = Modifier
@@ -47,39 +63,82 @@ fun LeaderboardScreen(
                     .border(1.dp, Yellow500.copy(alpha = 0.3f), RoundedCornerShape(16.dp)),
                 color = Neutral900
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(46.dp)
-                            .clip(CircleShape)
-                            .background(Yellow500.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.EmojiEvents,
-                            contentDescription = "League",
-                            tint = Yellow400,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(Yellow500.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.EmojiEvents,
+                                    contentDescription = "League",
+                                    tint = Yellow400,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column {
+                                Text(
+                                    text = "Diamond League",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = Neutral100
+                                )
+                                Text(
+                                    text = "Top 3 learners advance • Live Leaderboard",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Neutral400
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = onRefresh,
+                            enabled = !isRefreshing
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Refresh",
+                                tint = if (isRefreshing) Blue400 else Neutral300,
+                                modifier = if (isRefreshing) Modifier.rotate(angle) else Modifier
+                            )
+                        }
                     }
 
-                    Spacer(modifier = Modifier.width(14.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    Column {
-                        Text(
-                            text = "Diamond League",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = Neutral100
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Top 3 learners advance • Resets in 3 days",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Neutral400
-                        )
+                    // Cloud MongoDB live status pill
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Green500.copy(alpha = 0.12f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Green500.copy(alpha = 0.3f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Green400)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Live MongoDB Atlas Cloud • Real Players",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = Green400
+                            )
+                        }
                     }
                 }
             }
@@ -94,12 +153,24 @@ fun LeaderboardScreen(
 
         // ── Rest of the Ranks ──
         item {
-            Text(
-                text = "Rankings",
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                color = Neutral400,
-                modifier = Modifier.padding(top = 8.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Live Player Rankings (${entries.size})",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Neutral400
+                )
+                Text(
+                    text = "Sorted by XP",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Neutral500
+                )
+            }
         }
 
         items(rest) { entry ->
@@ -125,7 +196,7 @@ private fun PodiumSection(topThree: List<LeaderboardEntry>) {
         if (second != null) {
             PodiumColumn(
                 entry = second,
-                height = 130.dp,
+                height = 145.dp,
                 medalColor = Color(0xFFC0C0C0), // Silver
                 rankNumber = 2,
                 modifier = Modifier.weight(1f)
@@ -135,7 +206,7 @@ private fun PodiumSection(topThree: List<LeaderboardEntry>) {
         if (first != null) {
             PodiumColumn(
                 entry = first,
-                height = 155.dp,
+                height = 175.dp,
                 medalColor = Color(0xFFFFD700), // Gold
                 rankNumber = 1,
                 modifier = Modifier.weight(1.1f)
@@ -145,7 +216,7 @@ private fun PodiumSection(topThree: List<LeaderboardEntry>) {
         if (third != null) {
             PodiumColumn(
                 entry = third,
-                height = 115.dp,
+                height = 130.dp,
                 medalColor = Color(0xFFCD7F32), // Bronze
                 rankNumber = 3,
                 modifier = Modifier.weight(1f)
@@ -180,19 +251,31 @@ private fun PodiumColumn(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Avatar or medal rank
             Box(
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(38.dp)
                     .clip(CircleShape)
                     .background(medalColor.copy(alpha = 0.2f))
-                    .border(1.dp, medalColor, CircleShape),
+                    .border(1.5.dp, medalColor, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "$rankNumber",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
-                    color = medalColor
-                )
+                if (entry.avatarUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = entry.avatarUrl,
+                        contentDescription = entry.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                    )
+                } else {
+                    Text(
+                        text = "$rankNumber",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
+                        color = medalColor
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -261,16 +344,27 @@ private fun RankRowItem(entry: LeaderboardEntry) {
 
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(34.dp)
                         .clip(CircleShape)
                         .background(if (entry.isCurrentUser) Blue500 else Neutral800),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = entry.name.firstOrNull()?.uppercase() ?: "U",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = if (entry.isCurrentUser) Neutral950 else Neutral200
-                    )
+                    if (entry.avatarUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = entry.avatarUrl,
+                            contentDescription = entry.name,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                        )
+                    } else {
+                        Text(
+                            text = entry.name.firstOrNull()?.uppercase() ?: "U",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = if (entry.isCurrentUser) Neutral950 else Neutral200
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(10.dp))

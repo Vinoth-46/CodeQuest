@@ -57,7 +57,10 @@ data class LeaderboardEntry(
     val languageBadge: String,
     val streakDays: Int,
     val xp: Int,
-    val isCurrentUser: Boolean = false
+    val isCurrentUser: Boolean = false,
+    val avatarUrl: String = "",
+    val level: Int = 1,
+    val id: String = ""
 )
 
 data class UserProgress(
@@ -70,7 +73,13 @@ data class UserProgress(
     val dailyGoalTarget: Int = 5,
     val lastActiveDate: String = "",
     val userName: String = "",
-    val isDarkMode: Boolean = true
+    val isDarkMode: Boolean = true,
+    val isLoggedIn: Boolean = false,
+    val googleId: String = "",
+    val userEmail: String = "",
+    val userAvatarUrl: String = "",
+    val cloudRank: Int = 0,
+    val googleClientId: String = ""
 ) {
     val level: Int get() = (xp / 200) + 1
     val xpForNextLevel: Int get() = 200

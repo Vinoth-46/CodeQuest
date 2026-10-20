@@ -1,8 +1,10 @@
 package com.codequest.learn.viewmodel
 
+import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.codequest.learn.CodeQuestApplication
+import com.codequest.learn.auth.GoogleAuthManager
 import com.codequest.learn.data.QuestionRepository
 import com.codequest.learn.model.*
 import kotlinx.coroutines.flow.*
@@ -60,14 +62,34 @@ class CodeQuestViewModel(
     private val _hasAiQuestionsToday = MutableStateFlow(false)
     val hasAiQuestionsToday: StateFlow<Boolean> = _hasAiQuestionsToday.asStateFlow()
 
-    // ── Dynamic Leaderboard ──
-    val leaderboard: StateFlow<List<LeaderboardEntry>> = progress
-        .map { repository.generateLeaderboard(it) }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    // ── Live MongoDB Leaderboard & Auth ──
+    private val googleAuthManager = GoogleAuthManager()
+
+    private val _isRefreshingLeaderboard = MutableStateFlow(false)
+    val isRefreshingLeaderboard: StateFlow<Boolean> = _isRefreshingLeaderboard.asStateFlow()
+
+    private val _liveLeaderboard = MutableStateFlow<List<LeaderboardEntry>>(emptyList())
+
+    val leaderboard: StateFlow<List<LeaderboardEntry>> = combine(
+        progress,
+        _liveLeaderboard
+    ) { currentProgress, liveList ->
+        if (liveList.isNotEmpty()) {
+            liveList
+        } else {
+            repository.generateLeaderboard(currentProgress)
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    private val _authMessage = MutableStateFlow<String?>(null)
+    val authMessage: StateFlow<String?> = _authMessage.asStateFlow()
+
+    private val _isAuthenticating = MutableStateFlow(false)
+    val isAuthenticating: StateFlow<Boolean> = _isAuthenticating.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -75,6 +97,7 @@ class CodeQuestViewModel(
             checkAiStatus()
             loadQuestions()
             checkForAppUpdates()
+            refreshLeaderboard()
 
             // If API key is configured and no AI questions for today, auto-fetch quietly in the background without blocking the UI
             val key = repository.apiKey.first()
@@ -250,6 +273,94 @@ class CodeQuestViewModel(
             repository.clearAiCache()
             loadQuestions()
         }
+    }
+
+    // ── Live Cloud Leaderboard & Authentication ──
+
+    fun refreshLeaderboard() {
+        viewModelScope.launch {
+            _isRefreshingLeaderboard.value = true
+            val currentProgress = progress.value
+            val live = repository.fetchLiveLeaderboard(currentProgress)
+            _liveLeaderboard.value = live
+            _isRefreshingLeaderboard.value = false
+        }
+    }
+
+    fun signInWithGoogle(activity: Activity) {
+        val current = progress.value
+        val clientId = current.googleClientId
+        viewModelScope.launch {
+            _isAuthenticating.value = true
+            _authMessage.value = null
+            val result = googleAuthManager.signInWithGoogle(activity, clientId)
+            result.fold(
+                onSuccess = { googleUser ->
+                    val saveResult = repository.saveGoogleUser(
+                        googleId = googleUser.googleId,
+                        email = googleUser.email,
+                        displayName = googleUser.displayName,
+                        avatarUrl = googleUser.avatarUrl
+                    )
+                    saveResult.fold(
+                        onSuccess = { cloudUser ->
+                            _authMessage.value = "Welcome, ${cloudUser.displayName}! Synced with Live Leaderboard."
+                            refreshLeaderboard()
+                        },
+                        onFailure = { err ->
+                            _authMessage.value = "Signed in locally, but cloud sync failed: ${err.message}"
+                        }
+                    )
+                },
+                onFailure = { error ->
+                    _authMessage.value = error.message ?: "Google Sign-In failed"
+                }
+            )
+            _isAuthenticating.value = false
+        }
+    }
+
+    fun signInWithPlayerProfile(name: String, email: String) {
+        viewModelScope.launch {
+            _isAuthenticating.value = true
+            _authMessage.value = null
+            val googleId = "player_" + System.currentTimeMillis()
+            val saveResult = repository.saveGoogleUser(
+                googleId = googleId,
+                email = email.trim(),
+                displayName = name.trim(),
+                avatarUrl = ""
+            )
+            saveResult.fold(
+                onSuccess = { cloudUser ->
+                    _authMessage.value = "Welcome, ${cloudUser.displayName}! Registered on Live MongoDB Leaderboard."
+                    refreshLeaderboard()
+                },
+                onFailure = { err ->
+                    _authMessage.value = "Failed to register on live leaderboard: ${err.message}"
+                }
+            )
+            _isAuthenticating.value = false
+        }
+    }
+
+    fun signOut() {
+        viewModelScope.launch {
+            repository.signOutUser()
+            _authMessage.value = "Signed out successfully"
+            refreshLeaderboard()
+        }
+    }
+
+    fun saveGoogleClientId(clientId: String) {
+        viewModelScope.launch {
+            repository.saveGoogleClientId(clientId.trim())
+            _authMessage.value = "Google Web Client ID saved"
+        }
+    }
+
+    fun clearAuthMessage() {
+        _authMessage.value = null
     }
 
     // ── In-App Play Store-style Updates ──

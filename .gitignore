@@ -45,6 +45,11 @@ Thumbs.db
 *.jks
 *.keystore
 google-services.json
+atlas-credentials.env
+.env
+backend/.env
+node_modules/
+backend/node_modules/
 
 # Allow production release APK for direct OTA updates
 !CodeQuest.apk

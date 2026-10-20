@@ -1,6 +1,8 @@
 package com.codequest.learn.data
 
 import com.codequest.learn.data.local.UserPreferences
+import com.codequest.learn.data.remote.BackendApiClient
+import com.codequest.learn.data.remote.CloudUser
 import com.codequest.learn.data.remote.GeminiQuestionGenerator
 import com.codequest.learn.model.*
 import kotlinx.coroutines.flow.Flow
@@ -12,7 +14,8 @@ import java.util.Locale
 
 class QuestionRepository(
     private val preferences: UserPreferences,
-    private val geminiGenerator: GeminiQuestionGenerator
+    private val geminiGenerator: GeminiQuestionGenerator,
+    val apiClient: BackendApiClient = BackendApiClient()
 ) {
     val userProgress: Flow<UserProgress> = preferences.userProgress
     val apiKey: Flow<String> = preferences.apiKey
@@ -194,14 +197,100 @@ class QuestionRepository(
         preferences.saveAiQuestionCache(AiQuestionCache())
     }
 
-    // ── Leaderboard ──
+    // ── Live MongoDB Leaderboard & Auth ──
+
+    suspend fun fetchLiveLeaderboard(userProgress: UserProgress): List<LeaderboardEntry> {
+        val result = apiClient.fetchLiveLeaderboard(
+            currentUserGoogleId = userProgress.googleId,
+            currentUserEmail = userProgress.userEmail
+        )
+        return result.getOrElse {
+            // Offline fallback to simulated competitor list
+            generateLeaderboard(userProgress)
+        }
+    }
+
+    suspend fun syncProgressToCloud(progress: UserProgress) {
+        if (!progress.isLoggedIn) return
+        try {
+            apiClient.syncProgress(
+                googleId = progress.googleId,
+                email = progress.userEmail,
+                displayName = progress.userName,
+                avatarUrl = progress.userAvatarUrl,
+                xp = progress.xp,
+                streakDays = progress.streakDays,
+                selectedLanguage = progress.selectedLanguage.displayName,
+                solvedCount = progress.completedChallengeIds.size
+            )
+        } catch (ignored: Exception) {}
+    }
+
+    suspend fun saveGoogleUser(
+        googleId: String,
+        email: String,
+        displayName: String,
+        avatarUrl: String
+    ): Result<CloudUser> {
+        val current = preferences.userProgress.first()
+        val authResult = apiClient.authenticateWithGoogle(
+            googleId = googleId,
+            email = email,
+            displayName = displayName,
+            avatarUrl = avatarUrl,
+            initialXp = current.xp,
+            initialStreak = current.streakDays,
+            selectedLanguage = current.selectedLanguage.displayName
+        )
+
+        authResult.onSuccess { cloudUser ->
+            preferences.updateProgress { prog ->
+                prog.copy(
+                    isLoggedIn = true,
+                    googleId = cloudUser.googleId.ifBlank { googleId },
+                    userEmail = cloudUser.email.ifBlank { email },
+                    userName = cloudUser.displayName.ifBlank { displayName },
+                    userAvatarUrl = cloudUser.avatarUrl.ifBlank { avatarUrl },
+                    xp = Math.max(prog.xp, cloudUser.xp),
+                    cloudRank = cloudUser.rank
+                )
+            }
+        }
+        return authResult
+    }
+
+    suspend fun signOutUser() {
+        preferences.updateProgress {
+            it.copy(
+                isLoggedIn = false,
+                googleId = "",
+                userEmail = "",
+                userAvatarUrl = "",
+                cloudRank = 0
+            )
+        }
+    }
+
+    suspend fun saveGoogleClientId(clientId: String) {
+        preferences.updateProgress { it.copy(googleClientId = clientId) }
+    }
+
+    // ── Leaderboard Fallback ──
 
     fun generateLeaderboard(userProgress: UserProgress): List<LeaderboardEntry> {
         val userName = userProgress.userName.ifEmpty { "You" }
         val userXp = userProgress.xp
 
         val entries = mutableListOf(
-            LeaderboardEntry(0, userName, userProgress.selectedLanguage.displayName, userProgress.streakDays, userXp, isCurrentUser = true)
+            LeaderboardEntry(
+                rank = 0,
+                name = userName,
+                languageBadge = userProgress.selectedLanguage.displayName,
+                streakDays = userProgress.streakDays,
+                xp = userXp,
+                isCurrentUser = true,
+                avatarUrl = userProgress.userAvatarUrl
+            )
         )
 
         // Add simulated competitors that scale with user progress

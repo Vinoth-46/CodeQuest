@@ -53,6 +53,9 @@ fun CodeQuestApp(viewModel: CodeQuestViewModel) {
     val generationMessage by viewModel.generationMessage.collectAsState()
     val hasAiToday by viewModel.hasAiQuestionsToday.collectAsState()
     val leaderboard by viewModel.leaderboard.collectAsState()
+    val isRefreshingLeaderboard by viewModel.isRefreshingLeaderboard.collectAsState()
+    val authMessage by viewModel.authMessage.collectAsState()
+    val isAuthenticating by viewModel.isAuthenticating.collectAsState()
     val availableUpdate by viewModel.availableUpdate.collectAsState()
     val isDownloadingUpdate by viewModel.isDownloadingUpdate.collectAsState()
     val downloadProgress by viewModel.downloadProgress.collectAsState()
@@ -178,7 +181,11 @@ fun CodeQuestApp(viewModel: CodeQuestViewModel) {
                         )
                     }
                     NavigationTab.LEADERBOARD -> {
-                        LeaderboardScreen(entries = leaderboard)
+                        LeaderboardScreen(
+                            entries = leaderboard,
+                            isRefreshing = isRefreshingLeaderboard,
+                            onRefresh = { viewModel.refreshLeaderboard() }
+                        )
                     }
                     NavigationTab.PROFILE -> {
                         SettingsScreen(
@@ -189,7 +196,13 @@ fun CodeQuestApp(viewModel: CodeQuestViewModel) {
                             onToggleDarkMode = { viewModel.toggleDarkMode(it) },
                             onSetDailyGoal = { viewModel.setDailyGoalTarget(it) },
                             onResetProgress = { viewModel.resetProgress() },
-                            onCheckForUpdates = { viewModel.checkForAppUpdates() }
+                            onCheckForUpdates = { viewModel.checkForAppUpdates() },
+                            onSignInWithGoogle = { act -> viewModel.signInWithGoogle(act) },
+                            onSignInWithPlayerProfile = { name, email -> viewModel.signInWithPlayerProfile(name, email) },
+                            onSignOut = { viewModel.signOut() },
+                            onSaveGoogleClientId = { viewModel.saveGoogleClientId(it) },
+                            authMessage = authMessage,
+                            isAuthenticating = isAuthenticating
                         )
                     }
                 }

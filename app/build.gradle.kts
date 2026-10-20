@@ -21,8 +21,8 @@ android {
         applicationId = "com.codequest.learn"
         minSdk = 24
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.0.3"
 
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
 
@@ -92,6 +92,17 @@ dependencies {
 
     // JSON Serialization
     implementation("com.google.code.gson:gson:2.10.1")
+
+    // Google Sign-In & Credential Manager
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+
+    // Image loading for Google Profile Avatars
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // HTTP Networking for MongoDB Cloud API
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")

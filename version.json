@@ -1,7 +1,7 @@
 {
-  "versionCode": 3,
-  "versionName": "1.0.2",
-  "releaseNotes": "• Fixed Check Updates button layout (no longer collapsed)\n• Completely hid Gemini AI engine and API key cards for a cleaner UI\n• Polished Home & Profile settings screens",
+  "versionCode": 4,
+  "versionName": "1.0.3",
+  "releaseNotes": "🔥 Live Cloud Leaderboard connected to MongoDB Atlas!\n• Google Sign-In with Credential Manager & Quick Challenger Profile\n• Real-time player rankings with cloud XP sync\n• Live competitive diamond league with real avatars",
   "apkUrl": "https://raw.githubusercontent.com/Vinoth-46/CodeQuest/main/CodeQuest.apk",
   "isMandatory": false
 }
