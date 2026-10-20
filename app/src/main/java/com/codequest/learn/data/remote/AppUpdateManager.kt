@@ -5,7 +5,10 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.FileProvider
 import com.codequest.learn.BuildConfig
@@ -14,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -60,6 +64,42 @@ class AppUpdateManager {
         }
     }
 
+    private fun openConnectionWithRedirects(initialUrl: String): HttpURLConnection {
+        var currentUrl = initialUrl
+        var redirectCount = 0
+        while (redirectCount < 6) {
+            val url = URL(currentUrl)
+            val connection = (url.openConnection() as HttpURLConnection).apply {
+                instanceFollowRedirects = true
+                connectTimeout = 15000
+                readTimeout = 30000
+                setRequestProperty("User-Agent", "CodeQuest-Updater")
+            }
+            connection.connect()
+
+            val status = connection.responseCode
+            if (status == HttpURLConnection.HTTP_MOVED_TEMP ||
+                status == HttpURLConnection.HTTP_MOVED_PERM ||
+                status == HttpURLConnection.HTTP_SEE_OTHER ||
+                status == 307 || status == 308
+            ) {
+                val newUrl = connection.getHeaderField("Location")
+                connection.disconnect()
+                if (newUrl == null) break
+                currentUrl = if (newUrl.startsWith("http")) newUrl else URL(url, newUrl).toString()
+                redirectCount++
+            } else {
+                return connection
+            }
+        }
+        val url = URL(currentUrl)
+        return (url.openConnection() as HttpURLConnection).apply {
+            connectTimeout = 15000
+            readTimeout = 30000
+            setRequestProperty("User-Agent", "CodeQuest-Updater")
+        }
+    }
+
     /**
      * Downloads the APK file with real-time progress and launches the native package installer
      */
@@ -72,11 +112,10 @@ class AppUpdateManager {
             val destinationFile = File(context.cacheDir, "CodeQuest_v${updateInfo.versionName}.apk")
             if (destinationFile.exists()) destinationFile.delete()
 
-            val url = URL(updateInfo.apkUrl)
-            val connection = url.openConnection() as HttpURLConnection
-            connection.connectTimeout = 15000
-            connection.readTimeout = 30000
-            connection.connect()
+            val connection = openConnectionWithRedirects(updateInfo.apkUrl)
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+                throw IOException("Server returned HTTP ${connection.responseCode}: ${connection.responseMessage}")
+            }
 
             val fileLength = connection.contentLength
             val input = connection.inputStream
@@ -100,6 +139,7 @@ class AppUpdateManager {
             output.flush()
             output.close()
             input.close()
+            connection.disconnect()
 
             withContext(Dispatchers.Main) {
                 onProgress(1f)
@@ -116,6 +156,27 @@ class AppUpdateManager {
      * Triggers the Android OS Package Installer prompt to update the app in-place
      */
     fun installApk(context: Context, apkFile: File, updateInfo: AppUpdateInfo) {
+        if (!apkFile.exists() || apkFile.length() < 1000) {
+            Toast.makeText(context, "Downloaded update is incomplete. Please try again.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (!context.packageManager.canRequestPackageInstalls()) {
+                Toast.makeText(
+                    context,
+                    "Please allow CodeQuest to install apps from this source",
+                    Toast.LENGTH_LONG
+                ).show()
+                val permissionIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(permissionIntent)
+                return
+            }
+        }
+
         val apkUri = FileProvider.getUriForFile(
             context,
             "${context.packageName}.fileprovider",

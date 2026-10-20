@@ -284,7 +284,7 @@ class CodeQuestViewModel(
         viewModelScope.launch {
             _isDownloadingUpdate.value = true
             _downloadProgress.value = 0f
-            appUpdateManager.downloadAndInstallApk(
+            val result = appUpdateManager.downloadAndInstallApk(
                 context = context,
                 updateInfo = update,
                 onProgress = { progress ->
@@ -292,6 +292,13 @@ class CodeQuestViewModel(
                 }
             )
             _isDownloadingUpdate.value = false
+            result.onFailure { error ->
+                android.widget.Toast.makeText(
+                    context,
+                    "Update failed: ${error.localizedMessage ?: "Unknown error"}",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
         }
     }
 
