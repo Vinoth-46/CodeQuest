@@ -405,14 +405,14 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Text(
-                                    text = "CodeQuest v1.0.0",
+                                    text = "CodeQuest v${com.codequest.learn.BuildConfig.VERSION_NAME}",
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "In-App OTA Updates Enabled",
+                                    text = "Up to date • OTA Updates Enabled",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = Green400
                                 )
                             }
                         }
@@ -421,7 +421,7 @@ fun SettingsScreen(
                             onClick = {
                                 isCheckingUpdate = true
                                 onCheckForUpdates()
-                                updateCheckMessage = "You're on the latest version!"
+                                updateCheckMessage = "✅ You're on the latest version! (v${com.codequest.learn.BuildConfig.VERSION_NAME})"
                                 isCheckingUpdate = false
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Blue500),
