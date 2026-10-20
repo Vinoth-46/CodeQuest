@@ -92,3 +92,47 @@ data class AiQuestionCache(
     val questions: List<ChallengeQuestion> = emptyList(),
     val dateGenerated: String = ""
 )
+
+data class PathMilestone(
+    val id: String,
+    val tier: String, // "Beginner", "Intermediate", "Advanced", "Expert"
+    val title: String,
+    val description: String,
+    val lessonsCount: Int,
+    val isCompleted: Boolean = false,
+    val isUnlocked: Boolean = false
+)
+
+data class LearningPath(
+    val id: String,
+    val name: String, // "Web Dev", "Python", "DSA", "AI/ML"
+    val description: String,
+    val milestones: List<PathMilestone> = emptyList()
+)
+
+data class RecommendedCourse(
+    val id: String,
+    val title: String,
+    val level: String,
+    val duration: String,
+    val progress: Int, // 0 to 100
+    val category: String,
+    val rating: Float = 4.9f
+)
+
+data class LearnerBadge(
+    val id: String,
+    val name: String,
+    val tier: String,
+    val description: String,
+    val isUnlocked: Boolean = false
+)
+
+data class HomeNotification(
+    val id: String,
+    val title: String,
+    val description: String,
+    val timeAgo: String,
+    val isUnread: Boolean = true
+)
+

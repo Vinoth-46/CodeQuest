@@ -46,13 +46,5 @@ Thumbs.db
 *.keystore
 google-services.json
 
-# Web / Node / Vite
-node_modules/
-dist/
-.vite/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
 # Allow production release APK for direct OTA updates
 !CodeQuest.apk

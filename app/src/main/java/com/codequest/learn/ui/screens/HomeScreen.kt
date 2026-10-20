@@ -40,19 +40,77 @@ fun HomeScreen(
     onOpenSettings: () -> Unit,
     onClearMessage: () -> Unit
 ) {
+    var searchQuery by remember { mutableStateOf("") }
+
+    val filteredCourses = remember(searchQuery) {
+        if (searchQuery.isBlank()) {
+            com.codequest.learn.data.LearningCatalog.recommendedCourses
+        } else {
+            com.codequest.learn.data.LearningCatalog.recommendedCourses.filter {
+                it.title.contains(searchQuery, ignoreCase = true) ||
+                it.category.contains(searchQuery, ignoreCase = true) ||
+                it.level.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
+        contentPadding = PaddingValues(top = 8.dp, bottom = 28.dp)
     ) {
-        // ── 1. User Level & Rank Card ──
+        // ── 1. Header: Greeting, Streak Badge & Notification Bell ──
         item {
-            UserLevelCard(progress = progress)
+            com.codequest.learn.ui.components.HomeHeader(progress = progress)
         }
 
-        // ── 2. AI Daily Quests Banner ──
+        // ── 2. Search Bar ──
+        item {
+            com.codequest.learn.ui.components.HomeSearchBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it }
+            )
+        }
+
+        // ── 3. Continue Learning Card (Resume / Start Here) ──
+        item {
+            com.codequest.learn.ui.components.ContinueLearningCard(
+                progress = progress,
+                onResume = { onSelectMode(ChallengeMode.DAILY_QUIZ) },
+                onStartHere = { onSelectMode(ChallengeMode.DAILY_QUIZ) }
+            )
+        }
+
+        // ── 4. Daily Challenge Card (Coding task, progress ring, Start button) ──
+        item {
+            com.codequest.learn.ui.components.DailyChallengeCard(
+                onStartChallenge = { onSelectMode(ChallengeMode.LOGIC_BUILDER) }
+            )
+        }
+
+        // ── 5. Learning Paths Roadmap (Beginner → Intermediate → Advanced → Expert) ──
+        item {
+            com.codequest.learn.ui.components.LearningPathsRoadmap(
+                onSelectMilestone = { _, _ -> onSelectMode(ChallengeMode.MISSING_WORDS) }
+            )
+        }
+
+        // ── 6. Recommended For You (Horizontal Scroll Courses) ──
+        item {
+            com.codequest.learn.ui.components.RecommendedCoursesRow(
+                courses = filteredCourses,
+                onSelectCourse = { onSelectMode(ChallengeMode.GUESS_OUTPUT) }
+            )
+        }
+
+        // ── 7. Progress Snapshot (XP, Level, Badges, Completed Lessons) ──
+        item {
+            com.codequest.learn.ui.components.ProgressSnapshotCard(progress = progress)
+        }
+
+        // ── AI Daily Quests Banner ──
         item {
             AiDailyQuestBanner(
                 apiKey = apiKey,
@@ -66,12 +124,7 @@ fun HomeScreen(
             )
         }
 
-        // ── 3. Daily Goal Progress Card ──
-        item {
-            DailyGoalCard(progress = progress)
-        }
-
-        // ── 4. Skill Tier Filter Selector ──
+        // ── Skill Tier Filter Selector ──
         item {
             SkillTierFilterRow(
                 selectedTier = selectedTier,
@@ -79,7 +132,7 @@ fun HomeScreen(
             )
         }
 
-        // ── 5. Mode Section Title ──
+        // ── 4 Interactive Challenge Modes ──
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -102,7 +155,6 @@ fun HomeScreen(
             }
         }
 
-        // ── 6. Challenge Mode Cards ──
         items(ChallengeMode.entries) { mode ->
             ModeCardItem(
                 mode = mode,
@@ -112,6 +164,7 @@ fun HomeScreen(
         }
     }
 }
+
 
 @Composable
 private fun UserLevelCard(progress: UserProgress) {

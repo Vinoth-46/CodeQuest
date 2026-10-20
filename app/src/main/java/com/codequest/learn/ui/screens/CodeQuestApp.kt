@@ -33,10 +33,11 @@ enum class NavigationTab(
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector
 ) {
+    HOME("Home", Icons.Filled.Home, Icons.Outlined.Home),
     LEARN("Learn", Icons.Filled.School, Icons.Outlined.School),
-    ARENA("Arena", Icons.Filled.Code, Icons.Outlined.Code),
-    RANKS("Ranks", Icons.Filled.Leaderboard, Icons.Outlined.Leaderboard),
-    SETTINGS("Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
+    PRACTICE("Practice", Icons.Filled.Code, Icons.Outlined.Code),
+    LEADERBOARD("Leaderboard", Icons.Filled.Leaderboard, Icons.Outlined.Leaderboard),
+    PROFILE("Profile", Icons.Filled.Person, Icons.Outlined.Person)
 }
 
 @Composable
@@ -57,7 +58,7 @@ fun CodeQuestApp(viewModel: CodeQuestViewModel) {
     val downloadProgress by viewModel.downloadProgress.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    var currentTab by remember { mutableStateOf(NavigationTab.LEARN) }
+    var currentTab by remember { mutableStateOf(NavigationTab.HOME) }
     var showFlashScreen by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
@@ -74,14 +75,16 @@ fun CodeQuestApp(viewModel: CodeQuestViewModel) {
         Scaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                TopStatsBar(
-                    progress = progress,
-                    onLanguageToggle = {
-                        val next = if (progress.selectedLanguage == ProgrammingLanguage.PYTHON)
-                            ProgrammingLanguage.JAVA else ProgrammingLanguage.PYTHON
-                        viewModel.selectLanguage(next)
-                    }
-                )
+                if (currentTab != NavigationTab.HOME) {
+                    TopStatsBar(
+                        progress = progress,
+                        onLanguageToggle = {
+                            val next = if (progress.selectedLanguage == ProgrammingLanguage.PYTHON)
+                                ProgrammingLanguage.JAVA else ProgrammingLanguage.PYTHON
+                            viewModel.selectLanguage(next)
+                        }
+                    )
+                }
             },
             bottomBar = {
                 NavigationBar(
@@ -133,7 +136,7 @@ fun CodeQuestApp(viewModel: CodeQuestViewModel) {
                     .padding(innerPadding)
             ) {
                 when (currentTab) {
-                    NavigationTab.LEARN -> {
+                    NavigationTab.HOME -> {
                         HomeScreen(
                             progress = progress,
                             apiKey = apiKey,
@@ -144,14 +147,22 @@ fun CodeQuestApp(viewModel: CodeQuestViewModel) {
                             onSelectTier = { viewModel.selectTier(it) },
                             onSelectMode = { mode ->
                                 viewModel.selectMode(mode)
-                                currentTab = NavigationTab.ARENA
+                                currentTab = NavigationTab.PRACTICE
                             },
                             onGenerateAi = { tier -> viewModel.generateDailyAiQuestions(force = false, tier = tier) },
-                            onOpenSettings = { currentTab = NavigationTab.SETTINGS },
+                            onOpenSettings = { currentTab = NavigationTab.PROFILE },
                             onClearMessage = { viewModel.clearGenerationMessage() }
                         )
                     }
-                    NavigationTab.ARENA -> {
+                    NavigationTab.LEARN -> {
+                        LearnCatalogScreen(
+                            onSelectMode = { mode ->
+                                viewModel.selectMode(mode)
+                                currentTab = NavigationTab.PRACTICE
+                            }
+                        )
+                    }
+                    NavigationTab.PRACTICE -> {
                         ChallengeArenaScreen(
                             questions = questions,
                             activeIndex = activeIdx,
@@ -166,10 +177,10 @@ fun CodeQuestApp(viewModel: CodeQuestViewModel) {
                             onGenerateAi = { viewModel.generateDailyAiQuestions(force = true, tier = selectedTier) }
                         )
                     }
-                    NavigationTab.RANKS -> {
+                    NavigationTab.LEADERBOARD -> {
                         LeaderboardScreen(entries = leaderboard)
                     }
-                    NavigationTab.SETTINGS -> {
+                    NavigationTab.PROFILE -> {
                         SettingsScreen(
                             apiKey = apiKey,
                             progress = progress,
@@ -367,3 +378,42 @@ private fun AiGenerationLoadingOverlay(generationMessage: String?) {
         }
     }
 }
+
+@Composable
+private fun LearnCatalogScreen(
+    onSelectMode: (com.codequest.learn.model.ChallengeMode) -> Unit
+) {
+    androidx.compose.foundation.lazy.LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 28.dp)
+    ) {
+        item {
+            Column {
+                Text(
+                    text = "Full Learning Tracks",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Master modern programming across 4 specialized roadmaps.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        item {
+            com.codequest.learn.ui.components.LearningPathsRoadmap(
+                onSelectMilestone = { _, _ -> onSelectMode(com.codequest.learn.model.ChallengeMode.MISSING_WORDS) }
+            )
+        }
+        item {
+            com.codequest.learn.ui.components.RecommendedCoursesRow(
+                onSelectCourse = { onSelectMode(com.codequest.learn.model.ChallengeMode.GUESS_OUTPUT) }
+            )
+        }
+    }
+}
+
